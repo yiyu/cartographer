@@ -58,6 +58,8 @@ class GlobalTrajectoryBuilderInterface {
   virtual void AddSensorData(const sensor::OdometryData& odometry_data) = 0;
   virtual void AddSensorData(
       const sensor::FixedFramePoseData& fixed_frame_pose) = 0;
+    //james for test
+   virtual std::vector<transform::Rigid3d> GetHaloTrajectoryNodes() = 0;
 };
 
 }  // namespace mapping

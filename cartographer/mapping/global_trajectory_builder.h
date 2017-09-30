@@ -70,7 +70,12 @@ class GlobalTrajectoryBuilder
       const sensor::FixedFramePoseData& fixed_frame_pose) override {
     sparse_pose_graph_->AddFixedFramePoseData(trajectory_id_, fixed_frame_pose);
   }
-
+        
+ //james for test
+ std::vector<transform::Rigid3d> GetHaloTrajectoryNodes()
+    {
+        return local_trajectory_builder_.GetHaloTrajectoryNodes();
+    };
  private:
   const int trajectory_id_;
   SparsePoseGraph* const sparse_pose_graph_;

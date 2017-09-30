@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef CARTOGRAPHER_MAPPING_POSE_EXTRAPOLATOR_H_
-#define CARTOGRAPHER_MAPPING_POSE_EXTRAPOLATOR_H_
+#ifndef CARTOGRAPHER_MAPPING_HALO_POSE_EXTRAPOLATOR_H_
+#define CARTOGRAPHER_MAPPING_HALO_POSE_EXTRAPOLATOR_H_
 
 #include <deque>
 #include <memory>
@@ -32,15 +32,15 @@ namespace mapping {
 // Keep poses for a certain duration to estimate linear and angular velocity.
 // Uses the velocities to extrapolate motion. Uses IMU and/or odometry data if
 // available to improve the extrapolation.
-class PoseExtrapolator {
+class HaloPoseExtrapolator {
  public:
-  explicit PoseExtrapolator(common::Duration pose_queue_duration,
+  explicit HaloPoseExtrapolator(common::Duration pose_queue_duration,
                             double imu_gravity_time_constant);
 
-  PoseExtrapolator(const PoseExtrapolator&) = delete;
-  PoseExtrapolator& operator=(const PoseExtrapolator&) = delete;
+  HaloPoseExtrapolator(const HaloPoseExtrapolator&) = delete;
+  HaloPoseExtrapolator& operator=(const HaloPoseExtrapolator&) = delete;
 
-  static std::unique_ptr<PoseExtrapolator> InitializeWithImu(
+  static std::unique_ptr<HaloPoseExtrapolator> InitializeWithImu(
       common::Duration pose_queue_duration, double imu_gravity_time_constant,
       const sensor::ImuData& imu_data);
 
@@ -66,8 +66,8 @@ class PoseExtrapolator {
                                             const std::deque<sensor::ImuData>& imu_data, const common::Time start_time,
                                             const common::Time end_time,
                                             std::deque<sensor::ImuData>::const_iterator* it);
-    void AddHaloImuPose(common::Time time, const transform::Rigid3d& pose);
-    transform::Rigid3d ExtrapolateHaloImuPose(const common::Time time);
+    //void AddHaloImuPose(common::Time time, const transform::Rigid3d& pose);
+   // transform::Rigid3d ExtrapolateHaloImuPose(const common::Time time);
     struct State {
         std::array<double, 3> translation;
         std::array<double, 4> rotation;  // Rotation quaternion as (w, x, y, z).
@@ -92,13 +92,7 @@ class PoseExtrapolator {
     };
     State PredictState(const State& start_state,const common::Time start_time,const common::Time end_time);
     
-    transform::Rigid3d GetHaloPose()
-    {
-        Eigen::Quaterniond r(haloPoseState_.rotation[0],haloPoseState_.rotation[1], haloPoseState_.rotation[2],haloPoseState_.rotation[3]);
-        Eigen::Vector3d p = Eigen::Map<const Eigen::Vector3d>(haloPoseState_.translation.data());
-        return transform::Rigid3d(p,r);
-    }
-
+    transform::Rigid3d GetHaloPose( common::Time time);
     //
     
  private:
@@ -115,7 +109,7 @@ class PoseExtrapolator {
     transform::Rigid3d pose;
   };
 //james
-  std::deque<TimedPose> halo_timed_pose_queue_;
+//  std::deque<TimedPose> halo_timed_pose_queue_;
   std::deque<TimedPose> timed_pose_queue_;
   Eigen::Vector3d linear_velocity_from_poses_ = Eigen::Vector3d::Zero();
   Eigen::Vector3d angular_velocity_from_poses_ = Eigen::Vector3d::Zero();
@@ -128,9 +122,6 @@ class PoseExtrapolator {
   Eigen::Vector3d linear_velocity_from_odometry_ = Eigen::Vector3d::Zero();
   Eigen::Vector3d angular_velocity_from_odometry_ = Eigen::Vector3d::Zero();
 //james
-    
-    Eigen::Vector3d halo_linear_velocity_from_poses_ = Eigen::Vector3d::Zero();
-    Eigen::Vector3d halo_angular_velocity_from_poses_ = Eigen::Vector3d::Zero();
 
   State  haloPoseState_;
   common::Time haloTime_;

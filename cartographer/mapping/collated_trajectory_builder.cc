@@ -79,5 +79,11 @@ void CollatedTrajectoryBuilder::HandleCollatedSensorData(
   data->AddToTrajectoryBuilder(wrapped_trajectory_builder_.get());
 }
 
+//james for test
+std::vector<transform::Rigid3d> CollatedTrajectoryBuilder::GetHaloTrajectoryNodes()
+{
+    return wrapped_trajectory_builder_->GetHaloTrajectoryNodes();
+}
+///
 }  // namespace mapping
 }  // namespace cartographer

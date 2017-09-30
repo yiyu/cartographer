@@ -44,18 +44,42 @@ LocalTrajectoryBuilder::LocalTrajectoryBuilder(
 
 LocalTrajectoryBuilder::~LocalTrajectoryBuilder() {}
 
-void LocalTrajectoryBuilder::AddImuData(const sensor::ImuData& imu_data) {
-  if (extrapolator_ != nullptr) {
+void LocalTrajectoryBuilder::AddImuData(const sensor::ImuData& imu_data)
+{
+  if (extrapolator_ != nullptr)
+  {
     extrapolator_->AddImuData(imu_data);
-    return;
+      //james
+   // return;
   }
-  // We derive velocities from poses which are at least 1 ms apart for numerical
-  // stability. Usually poses known to the extrapolator will be further apart
-  // in time and thus the last two are used.
-  constexpr double kExtrapolationEstimationTimeSec = 0.001;
-  extrapolator_ = mapping::PoseExtrapolator::InitializeWithImu(
-      ::cartographer::common::FromSeconds(kExtrapolationEstimationTimeSec),
-      options_.imu_gravity_time_constant(), imu_data);
+  else
+  {
+      // We derive velocities from poses which are at least 1 ms apart for numerical
+      // stability. Usually poses known to the extrapolator will be further apart
+      // in time and thus the last two are used.
+      constexpr double kExtrapolationEstimationTimeSec = 0.001;
+      extrapolator_ = mapping::PoseExtrapolator::InitializeWithImu(
+                           ::cartographer::common::FromSeconds(kExtrapolationEstimationTimeSec),
+                           options_.imu_gravity_time_constant(), imu_data);
+  }
+    
+//james
+    
+    if (halo_extrapolator_ != nullptr)
+    {
+        halo_extrapolator_->AddImuData(imu_data);
+       // return;
+    }else
+    {
+        constexpr double kExtrapolationEstimationTimeSec = 0.001;
+        //james
+        halo_extrapolator_ = mapping::HaloPoseExtrapolator::InitializeWithImu(
+              ::cartographer::common::FromSeconds(kExtrapolationEstimationTimeSec),
+              options_.imu_gravity_time_constant(), imu_data);
+
+    }
+//
+ 
 }
 
 std::unique_ptr<LocalTrajectoryBuilder::InsertionResult>
@@ -69,13 +93,13 @@ LocalTrajectoryBuilder::AddRangeData(const common::Time time,
   }
   if (num_accumulated_ == 0) {
     first_pose_estimate_ = extrapolator_->ExtrapolatePose(time).cast<float>();
-    accumulated_range_data_ =
-        sensor::RangeData{Eigen::Vector3f::Zero(), {}, {}};
+    accumulated_range_data_ = sensor::RangeData{Eigen::Vector3f::Zero(), {}, {}};
   }
 
   const transform::Rigid3f tracking_delta =
       first_pose_estimate_.inverse() *
       extrapolator_->ExtrapolatePose(time).cast<float>();
+    
   const sensor::RangeData range_data_in_first_tracking =
       sensor::TransformRangeData(range_data, tracking_delta);
   for (const Eigen::Vector3f& hit : range_data_in_first_tracking.returns) {
@@ -154,11 +178,20 @@ LocalTrajectoryBuilder::AddAccumulatedRangeData(
        {&low_resolution_point_cloud_in_tracking,
         &matching_submap->low_resolution_hybrid_grid()}},
       &pose_observation_in_submap, &summary);
-  const transform::Rigid3d pose_estimate =
-      matching_submap->local_pose() * pose_observation_in_submap;
-  extrapolator_->AddPose(time, pose_estimate);
-  const Eigen::Quaterniond gravity_alignment =
-      extrapolator_->EstimateGravityOrientation(time);
+    
+    const transform::Rigid3d pose_estimate =  matching_submap->local_pose() * pose_observation_in_submap;
+    extrapolator_->AddPose(time, pose_estimate);
+    
+   //james
+    const transform::Rigid3d halo_pose = halo_extrapolator_->GetHaloPose(time);
+    halo_extrapolator_->AddPose(time, halo_pose);
+    const transform::Rigid3d  halo_pose_estimate = halo_extrapolator_->ExtrapolatePose(time);
+    ImuTrajectoryNodes_.push_back(halo_pose_estimate);
+   // ImuTrajectoryNodes_.push_back(transform::Rigid3d(pose_estimate.translation(),halo_pose_estimate.rotation()));
+    
+    //std::cout << "James:AddAccumulatedRangeData time:" << time << " haloPose:" << halo_pose << " pose_estimate:" << pose_estimate << std::endl;
+//////
+  const Eigen::Quaterniond gravity_alignment = extrapolator_->EstimateGravityOrientation(time);
   const auto rotational_scan_matcher_histogram =
       scan_matching::RotationalScanMatcher::ComputeHistogram(
           sensor::TransformPointCloud(
@@ -170,7 +203,11 @@ LocalTrajectoryBuilder::AddAccumulatedRangeData(
       time, pose_estimate,
       sensor::TransformPointCloud(filtered_range_data.returns,
                                   pose_estimate.cast<float>())};
-
+    //james for test
+/*    transform::Rigid3d pos = extrapolator_->ExtrapolatePose(time);
+   std::cout << "james AddAccumulatedRangeData:time:" << time << " pose_prediction:" << pose_prediction << " halo_pose_estimate:" << pose_estimate << " pose_observation_in_submap:" << pose_observation_in_submap
+              << " pos:" << pos 
+              << "gravity_alignment:" << transform::Rigid3d::Rotation(gravity_alignment) << std::endl;*/
   return InsertIntoSubmap(time, filtered_range_data, gravity_alignment,
                           filtered_point_cloud_in_tracking,
                           low_resolution_point_cloud_in_tracking,
@@ -224,6 +261,12 @@ LocalTrajectoryBuilder::InsertIntoSubmap(
               rotational_scan_matcher_histogram}),
       pose_observation, std::move(insertion_submaps)});
 }
+
+//james for test
+    std::vector<transform::Rigid3d> LocalTrajectoryBuilder::GetHaloTrajectoryNodes() 
+    {
+       return ImuTrajectoryNodes_;
+    }
 
 }  // namespace mapping_3d
 }  // namespace cartographer

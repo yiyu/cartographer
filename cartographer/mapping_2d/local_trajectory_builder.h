@@ -60,7 +60,9 @@ class LocalTrajectoryBuilder {
       common::Time, const sensor::RangeData& range_data);
   void AddImuData(const sensor::ImuData& imu_data);
   void AddOdometerData(const sensor::OdometryData& odometry_data);
-
+    
+    //james for test
+    std::vector<transform::Rigid3d> GetHaloTrajectoryNodes();
  private:
   std::unique_ptr<InsertionResult> AddAccumulatedRangeData(
       common::Time time, const sensor::RangeData& range_data);
@@ -92,6 +94,9 @@ class LocalTrajectoryBuilder {
   int num_accumulated_ = 0;
   transform::Rigid3f first_pose_estimate_ = transform::Rigid3f::Identity();
   sensor::RangeData accumulated_range_data_;
+    
+    //james
+    std::vector<transform::Rigid3d>  ImuTrajectoryNodes_;
 };
 
 }  // namespace mapping_2d

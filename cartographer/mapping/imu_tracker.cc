@@ -33,7 +33,8 @@ ImuTracker::ImuTracker(const double imu_gravity_time_constant,
       last_linear_acceleration_time_(common::Time::min()),
       orientation_(Eigen::Quaterniond::Identity()),
       gravity_vector_(Eigen::Vector3d::UnitZ()),
-      imu_angular_velocity_(Eigen::Vector3d::Zero()) {}
+      imu_angular_velocity_(Eigen::Vector3d::Zero()),
+      halo_gravity_velocity_(Eigen::Vector3d::Zero()){}
 
 void ImuTracker::Advance(const common::Time time) {
   CHECK_LE(time_, time);
@@ -54,15 +55,27 @@ void ImuTracker::AddImuLinearAccelerationObservation(
       last_linear_acceleration_time_ > common::Time::min()
           ? common::ToSeconds(time_ - last_linear_acceleration_time_)
           : std::numeric_limits<double>::infinity();
+
+    if(delta_t != std::numeric_limits<double>::infinity())
+    {
+        //james
+        halo_gravity_velocity_ = halo_gravity_velocity_ + gravity_vector_*delta_t;
+      //  std::cout << "james: AddImuLinearAccelerationObservation: halo_gravity_velocity_" <<gravity_vector_ << "halo_gravity_velocity_:"<< halo_gravity_velocity_<< std::endl;
+        ///
+    }
+    imu_linear_acceleration - halo_gravity_;
   last_linear_acceleration_time_ = time_;
   const double alpha = 1. - std::exp(-delta_t / imu_gravity_time_constant_);
-  gravity_vector_ =
-      (1. - alpha) * gravity_vector_ + alpha * imu_linear_acceleration;
-  // Change the 'orientation_' so that it agrees with the current
+  gravity_vector_ = (1. - alpha) * gravity_vector_ + alpha * imu_linear_acceleration;
+    // Change the 'orientation_' so that it agrees with the current
   // 'gravity_vector_'.
   const Eigen::Quaterniond rotation = Eigen::Quaterniond::FromTwoVectors(
       gravity_vector_, orientation_.inverse() * Eigen::Vector3d::UnitZ());
   orientation_ = (orientation_ * rotation).normalized();
+    
+  halo_gravity_ = orientation_.inverse()* Eigen::Vector3d::UnitZ()* 9.8 ;
+  std::cout << "james: AddImuLinearAccelerationObservation: imu_acc:" << transform::Rigid3d(gravity_vector_,orientation_) << "halo_imu_acc:"<<  transform::Rigid3d(halo_gravity_,orientation_) << " halo_velocity" <<  transform::Rigid3d(imu_linear_acceleration,rotation)<< std::endl;
+    
   CHECK_GT((orientation_ * gravity_vector_).z(), 0.);
   CHECK_GT((orientation_ * gravity_vector_).normalized().z(), 0.99);
 }

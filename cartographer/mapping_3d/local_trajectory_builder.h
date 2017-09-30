@@ -22,6 +22,9 @@
 #include "cartographer/common/time.h"
 #include "cartographer/mapping/pose_estimate.h"
 #include "cartographer/mapping/pose_extrapolator.h"
+//james
+#include "cartographer/mapping/halo_pose_extrapolator.h"
+
 #include "cartographer/mapping_3d/motion_filter.h"
 #include "cartographer/mapping_3d/proto/local_trajectory_builder_options.pb.h"
 #include "cartographer/mapping_3d/scan_matching/ceres_scan_matcher.h"
@@ -59,6 +62,9 @@ class LocalTrajectoryBuilder {
   void AddOdometerData(const sensor::OdometryData& odometry_data);
   const mapping::PoseEstimate& pose_estimate() const;
 
+    //james for test
+    std::vector<transform::Rigid3d> GetHaloTrajectoryNodes() ;
+
  private:
   std::unique_ptr<InsertionResult> AddAccumulatedRangeData(
       common::Time time, const sensor::RangeData& range_data_in_tracking);
@@ -82,10 +88,13 @@ class LocalTrajectoryBuilder {
   std::unique_ptr<scan_matching::CeresScanMatcher> ceres_scan_matcher_;
 
   std::unique_ptr<mapping::PoseExtrapolator> extrapolator_;
-
+//james
+    std::unique_ptr<mapping::HaloPoseExtrapolator> halo_extrapolator_;
   int num_accumulated_ = 0;
   transform::Rigid3f first_pose_estimate_ = transform::Rigid3f::Identity();
   sensor::RangeData accumulated_range_data_;
+//james
+ std::vector<transform::Rigid3d>  ImuTrajectoryNodes_;
 };
 
 }  // namespace mapping_3d

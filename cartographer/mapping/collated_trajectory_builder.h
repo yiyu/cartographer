@@ -54,6 +54,8 @@ class CollatedTrajectoryBuilder : public TrajectoryBuilder {
   void AddSensorData(const string& sensor_id,
                      std::unique_ptr<sensor::Data> data) override;
 
+    //james for test
+    std::vector<transform::Rigid3d> GetHaloTrajectoryNodes()  override;
  private:
   void HandleCollatedSensorData(const string& sensor_id,
                                 std::unique_ptr<sensor::Data> data);

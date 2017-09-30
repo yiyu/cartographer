@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include "cartographer/mapping/pose_extrapolator.h"
+#include "cartographer/mapping/halo_pose_extrapolator.h"
 
 #include <algorithm>
 
@@ -27,15 +27,15 @@
 namespace cartographer {
 namespace mapping {
 
-PoseExtrapolator::PoseExtrapolator(const common::Duration pose_queue_duration,
+HaloPoseExtrapolator::HaloPoseExtrapolator(const common::Duration pose_queue_duration,
                                    double imu_gravity_time_constant)
     : pose_queue_duration_(pose_queue_duration),
     gravity_time_constant_(imu_gravity_time_constant),haloPoseState_(Eigen::Vector3d::Zero(),Eigen::Quaterniond::Identity(),Eigen::Vector3d::Zero()){}
 
-std::unique_ptr<PoseExtrapolator> PoseExtrapolator::InitializeWithImu(
+std::unique_ptr<HaloPoseExtrapolator> HaloPoseExtrapolator::InitializeWithImu(
     const common::Duration pose_queue_duration,
     const double imu_gravity_time_constant, const sensor::ImuData& imu_data) {
-  auto extrapolator = common::make_unique<PoseExtrapolator>(
+  auto extrapolator = common::make_unique<HaloPoseExtrapolator>(
       pose_queue_duration, imu_gravity_time_constant);
   extrapolator->AddImuData(imu_data);
   extrapolator->imu_tracker_ =
@@ -49,20 +49,20 @@ std::unique_ptr<PoseExtrapolator> PoseExtrapolator::InitializeWithImu(
       imu_data.time,
       transform::Rigid3d::Rotation(extrapolator->imu_tracker_->orientation()));
   //james
-  extrapolator->AddHaloImuPose(
+ /* extrapolator->AddHaloImuPose(
                           imu_data.time,
-                          transform::Rigid3d::Rotation(extrapolator->imu_tracker_->orientation()));
+                          transform::Rigid3d::Rotation(extrapolator->imu_tracker_->orientation()));*/
   return extrapolator;
 }
 
-common::Time PoseExtrapolator::GetLastPoseTime() const {
+common::Time HaloPoseExtrapolator::GetLastPoseTime() const {
   if (timed_pose_queue_.empty()) {
     return common::Time::min();
   }
   return timed_pose_queue_.back().time;
 }
 
-void PoseExtrapolator::AddPose(const common::Time time,
+void HaloPoseExtrapolator::AddPose(const common::Time time,
                                const transform::Rigid3d& pose) {
   if (imu_tracker_ == nullptr) {
     common::Time tracker_start = time;
@@ -84,7 +84,7 @@ void PoseExtrapolator::AddPose(const common::Time time,
 }
 //james ********************
 template <typename T>
-PoseExtrapolator::IntegrateImuResult<T> PoseExtrapolator::HaloIntegrateImu(
+HaloPoseExtrapolator::IntegrateImuResult<T> HaloPoseExtrapolator::HaloIntegrateImu(
                                    const std::deque<sensor::ImuData>& imu_data,
                                    const common::Time start_time, const common::Time end_time,
                                    std::deque<sensor::ImuData>::const_iterator* it)
@@ -113,15 +113,14 @@ PoseExtrapolator::IntegrateImuResult<T> PoseExtrapolator::HaloIntegrateImu(
         const T delta_t(common::ToSeconds(next_time - current_time));
         
         const Eigen::Matrix<T, 3, 1> delta_angle =
-        (angular_velocity_calibration * (*it)->angular_velocity.cast<T>()) *
-        delta_t;
-        result.delta_rotation *=
-        transform::AngleAxisVectorToRotationQuaternion(delta_angle);
-        result.delta_velocity +=
-        result.delta_rotation * ((linear_acceleration_calibration *
-                                  (*it)->linear_acceleration.cast<T>()) *
-                                 delta_t);
+        (angular_velocity_calibration * (*it)->angular_velocity.cast<T>()) * delta_t;
+        
+        result.delta_rotation *= transform::AngleAxisVectorToRotationQuaternion(delta_angle);
+       
+        result.delta_velocity += result.delta_rotation * ((linear_acceleration_calibration *
+                                  (*it)->linear_acceleration.cast<T>()) *delta_t);
         current_time = next_time;
+        
         if (current_time == next_imu_data) {
             ++(*it);
         }
@@ -129,7 +128,20 @@ PoseExtrapolator::IntegrateImuResult<T> PoseExtrapolator::HaloIntegrateImu(
     return result;
 }
 
-PoseExtrapolator::State PoseExtrapolator::PredictState(const State& start_state,
+transform::Rigid3d HaloPoseExtrapolator::GetHaloPose( common::Time time)
+{
+    if(imu_data_.size() > 1)
+    {
+        haloPoseState_ = PredictState(haloPoseState_,haloTime_,time);
+        haloTime_ = time;
+    }
+    Eigen::Quaterniond r(haloPoseState_.rotation[0],haloPoseState_.rotation[1], haloPoseState_.rotation[2],haloPoseState_.rotation[3]);
+    Eigen::Vector3d p = Eigen::Map<const Eigen::Vector3d>(haloPoseState_.translation.data());
+    return transform::Rigid3d(p,r);
+}
+    
+
+HaloPoseExtrapolator::State HaloPoseExtrapolator::PredictState(const State& start_state,
                                                const common::Time start_time,
                                                const common::Time end_time) {
     auto it = --imu_data_.cend();
@@ -137,32 +149,39 @@ PoseExtrapolator::State PoseExtrapolator::PredictState(const State& start_state,
         CHECK(it != imu_data_.cbegin());
         --it;
     }
+   const Eigen::Vector3d start_velocity = Eigen::Map<const Eigen::Vector3d>(start_state.velocity.data());
+   const Eigen::Vector3d start_position =  Eigen::Map<const Eigen::Vector3d>(start_state.translation.data());
+    const Eigen::Quaterniond start_rotation(start_state.rotation[0], start_state.rotation[1], start_state.rotation[2],
+                                            start_state.rotation[3]);
+
     
     const IntegrateImuResult<double> result = HaloIntegrateImu<double>(imu_data_, start_time, end_time, &it);
-    
-    const Eigen::Quaterniond start_rotation(
-                                            start_state.rotation[0], start_state.rotation[1], start_state.rotation[2],
-                                            start_state.rotation[3]);
+    /*
+    std::cout << " james:PredictState:"  << "start_position:" << transform::Rigid3d::Translation(start_position) << " start_rotation:" << transform::Rigid3d::Rotation(start_rotation) << " velocity:" <<  transform::Rigid3d::Translation( result.delta_velocity) << " rotation:" << transform::Rigid3d::Rotation(result.delta_rotation)  << std::endl;*/
     
     const Eigen::Quaterniond orientation = start_rotation * result.delta_rotation;
     const double delta_time_seconds = common::ToSeconds(end_time - start_time);
     
     // TODO(hrapp): IntegrateImu should integration position as well.
-    const Eigen::Vector3d position =
-    Eigen::Map<const Eigen::Vector3d>(start_state.translation.data()) +
-    delta_time_seconds *
-    Eigen::Map<const Eigen::Vector3d>(start_state.velocity.data());
-    const Eigen::Vector3d velocity =
-    Eigen::Map<const Eigen::Vector3d>(start_state.velocity.data()) +
-    start_rotation * result.delta_velocity -
-    9.8 * delta_time_seconds * Eigen::Vector3d::UnitZ();
+    const Eigen::Vector3d position = start_position +
+    delta_time_seconds * Eigen::Map<const Eigen::Vector3d>(start_state.velocity.data());
     
-    std::cout << " james:AddRangefinderData:"  << "start_time:" << start_time << " end_time:" <<end_time << " delta_time_seconds:" << delta_time_seconds << " position:" << position << " velocity:" << velocity  << std::endl;
+    const Eigen::Vector3d gravity_velocity = imu_tracker_->gravity_velocity();
+    const Eigen::Vector3d velocity = start_velocity +  start_rotation*result.delta_velocity
+                                                                    - gravity_velocity;
+    /*
+    const Eigen::Vector3d velocity =
+    Eigen::Map<const Eigen::Vector3d>(start_state.velocity.data()) + start_rotation * result.delta_velocity -
+    9.8 * delta_time_seconds * Eigen::Vector3d::UnitZ();
+    */
+  
+    
+    std::cout << "james:PredictState:"  << " time:" <<end_time  << " pose:" << transform::Rigid3d(position,orientation) << " velocity:" << transform::Rigid3d(velocity,result.delta_rotation) << std::endl;
     
     return State(position, orientation, velocity);
 }
-
-void PoseExtrapolator::AddHaloImuPose(const common::Time time,
+/*
+void HaloPoseExtrapolator::AddHaloImuPose(const common::Time time,
                                const transform::Rigid3d& pose) {
     if (imu_tracker_ == nullptr) {
         common::Time tracker_start = time;
@@ -172,18 +191,20 @@ void PoseExtrapolator::AddHaloImuPose(const common::Time time,
         imu_tracker_ =
         common::make_unique<ImuTracker>(gravity_time_constant_, tracker_start);
     }
+  
     halo_timed_pose_queue_.push_back(TimedPose{time, pose});
     while (halo_timed_pose_queue_.size() > 2 &&
            halo_timed_pose_queue_[1].time <= time - pose_queue_duration_) {
         halo_timed_pose_queue_.pop_front();
     }
+   
     UpdateVelocitiesFromPoses();
     AdvanceImuTracker(time, imu_tracker_.get());
     TrimImuData();
     TrimOdometryData();
 }
     
-transform::Rigid3d PoseExtrapolator::ExtrapolateHaloImuPose(const common::Time time)
+transform::Rigid3d HaloPoseExtrapolator::ExtrapolateHaloImuPose(const common::Time time)
 {
     // TODO(whess): Keep the last extrapolated pose.
     const TimedPose& newest_timed_pose = halo_timed_pose_queue_.back();
@@ -191,10 +212,10 @@ transform::Rigid3d PoseExtrapolator::ExtrapolateHaloImuPose(const common::Time t
     return transform::Rigid3d::Translation(ExtrapolateTranslation(time)) *
     newest_timed_pose.pose *
     transform::Rigid3d::Rotation(ExtrapolateRotation(time));
-}
+}*/
     
 ///////////////////////
-void PoseExtrapolator::AddImuData(const sensor::ImuData& imu_data)
+void HaloPoseExtrapolator::AddImuData(const sensor::ImuData& imu_data)
 {
   CHECK(timed_pose_queue_.empty() ||
         imu_data.time >= timed_pose_queue_.back().time);
@@ -202,18 +223,10 @@ void PoseExtrapolator::AddImuData(const sensor::ImuData& imu_data)
       haloTime_ = imu_data.time;
     
   imu_data_.push_back(imu_data);
-    //james
-  
-  if(imu_data_.size() > 1)
-  {
-      haloPoseState_ = PredictState(haloPoseState_,haloTime_,imu_data.time);
-      haloTime_ = imu_data.time;
-  }
-    ////
   TrimImuData();
 }
 
-void PoseExtrapolator::AddOdometryData(
+void HaloPoseExtrapolator::AddOdometryData(
     const sensor::OdometryData& odometry_data) {
   CHECK(timed_pose_queue_.empty() ||
         odometry_data.time >= timed_pose_queue_.back().time);
@@ -250,7 +263,7 @@ void PoseExtrapolator::AddOdometryData(
       linear_velocity_in_tracking_frame_at_newest_odometry_time;
 }
 
-transform::Rigid3d PoseExtrapolator::ExtrapolatePose(const common::Time time) {
+transform::Rigid3d HaloPoseExtrapolator::ExtrapolatePose(const common::Time time) {
   // TODO(whess): Keep the last extrapolated pose.
   const TimedPose& newest_timed_pose = timed_pose_queue_.back();
   CHECK_GE(time, newest_timed_pose.time);
@@ -259,14 +272,14 @@ transform::Rigid3d PoseExtrapolator::ExtrapolatePose(const common::Time time) {
          transform::Rigid3d::Rotation(ExtrapolateRotation(time));
 }
 
-Eigen::Quaterniond PoseExtrapolator::EstimateGravityOrientation(
+Eigen::Quaterniond HaloPoseExtrapolator::EstimateGravityOrientation(
     const common::Time time) {
   ImuTracker imu_tracker = *imu_tracker_;
   AdvanceImuTracker(time, &imu_tracker);
   return imu_tracker.orientation();
 }
 
-void PoseExtrapolator::UpdateVelocitiesFromPoses() {
+void HaloPoseExtrapolator::UpdateVelocitiesFromPoses() {
   if (timed_pose_queue_.size() < 2) {
     // We need two poses to estimate velocities.
     return;
@@ -292,21 +305,21 @@ void PoseExtrapolator::UpdateVelocitiesFromPoses() {
       queue_delta;
 }
 
-void PoseExtrapolator::TrimImuData() {
+void HaloPoseExtrapolator::TrimImuData() {
   while (imu_data_.size() > 1 && !timed_pose_queue_.empty() &&
          imu_data_[1].time <= timed_pose_queue_.back().time) {
     imu_data_.pop_front();
   }
 }
 
-void PoseExtrapolator::TrimOdometryData() {
+void HaloPoseExtrapolator::TrimOdometryData() {
   while (odometry_data_.size() > 2 && !timed_pose_queue_.empty() &&
          odometry_data_[1].time <= timed_pose_queue_.back().time) {
     odometry_data_.pop_front();
   }
 }
 
-void PoseExtrapolator::AdvanceImuTracker(const common::Time time,
+void HaloPoseExtrapolator::AdvanceImuTracker(const common::Time time,
                                          ImuTracker* const imu_tracker) {
   CHECK_GE(time, imu_tracker->time());
   if (imu_data_.empty() || time < imu_data_.front().time) {
@@ -337,7 +350,7 @@ void PoseExtrapolator::AdvanceImuTracker(const common::Time time,
   imu_tracker->Advance(time);
 }
 
-Eigen::Quaterniond PoseExtrapolator::ExtrapolateRotation(
+Eigen::Quaterniond HaloPoseExtrapolator::ExtrapolateRotation(
     const common::Time time) {
   ImuTracker imu_tracker = *imu_tracker_;
   AdvanceImuTracker(time, &imu_tracker);
@@ -348,7 +361,7 @@ Eigen::Quaterniond PoseExtrapolator::ExtrapolateRotation(
   return last_orientation.inverse() * orientationn;
 }
 
-Eigen::Vector3d PoseExtrapolator::ExtrapolateTranslation(common::Time time) {
+Eigen::Vector3d HaloPoseExtrapolator::ExtrapolateTranslation(common::Time time) {
   const TimedPose& newest_timed_pose = timed_pose_queue_.back();
   const double extrapolation_delta =
       common::ToSeconds(time - newest_timed_pose.time);

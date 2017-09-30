@@ -81,6 +81,10 @@ class TrajectoryBuilder {
                   sensor::MakeDispatchable(
                       sensor::FixedFramePoseData{time, fixed_frame_pose}));
   }
+
+
+  //james for test
+  virtual std::vector<transform::Rigid3d> GetHaloTrajectoryNodes() = 0;
 };
 
 }  // namespace mapping
