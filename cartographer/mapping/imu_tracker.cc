@@ -59,11 +59,10 @@ void ImuTracker::AddImuLinearAccelerationObservation(
     if(delta_t != std::numeric_limits<double>::infinity())
     {
         //james
-        halo_gravity_velocity_ = halo_gravity_velocity_ + gravity_vector_*delta_t;
+        halo_gravity_velocity_ = halo_gravity_velocity_ + (imu_linear_acceleration - halo_gravity_)*delta_t;
       //  std::cout << "james: AddImuLinearAccelerationObservation: halo_gravity_velocity_" <<gravity_vector_ << "halo_gravity_velocity_:"<< halo_gravity_velocity_<< std::endl;
         ///
     }
-    imu_linear_acceleration - halo_gravity_;
   last_linear_acceleration_time_ = time_;
   const double alpha = 1. - std::exp(-delta_t / imu_gravity_time_constant_);
   gravity_vector_ = (1. - alpha) * gravity_vector_ + alpha * imu_linear_acceleration;
