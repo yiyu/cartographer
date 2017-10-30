@@ -13,9 +13,11 @@
 -- limitations under the License.
 
 MAX_3D_RANGE = 60.
+--2.5 
+--60.
 
 TRAJECTORY_BUILDER_3D = {
-  min_range = 1.,
+  min_range = 1., --0.15, --1.,
   max_range = MAX_3D_RANGE,
   scans_per_accumulation = 1,
   voxel_filter_size = 0.15,
