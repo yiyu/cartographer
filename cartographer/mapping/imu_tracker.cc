@@ -73,7 +73,7 @@ void ImuTracker::AddImuLinearAccelerationObservation(
   orientation_ = (orientation_ * rotation).normalized();
     
   halo_gravity_ = orientation_.inverse()* Eigen::Vector3d::UnitZ()* 9.8 ;
-  std::cout << "james: AddImuLinearAccelerationObservation: imu_acc:" << transform::Rigid3d(gravity_vector_,orientation_) << "halo_imu_acc:"<<  transform::Rigid3d(halo_gravity_,orientation_) << " halo_velocity" <<  transform::Rigid3d(imu_linear_acceleration,rotation)<< std::endl;
+  //std::cout << "james: AddImuLinearAccelerationObservation: imu_acc:" << transform::Rigid3d(gravity_vector_,orientation_) << "halo_imu_acc:"<<  transform::Rigid3d(halo_gravity_,orientation_) << " halo_velocity" <<  transform::Rigid3d(imu_linear_acceleration,rotation)<< std::endl;
     
   CHECK_GT((orientation_ * gravity_vector_).z(), 0.);
   CHECK_GT((orientation_ * gravity_vector_).normalized().z(), 0.99);

@@ -119,7 +119,10 @@ LocalTrajectoryBuilder::AddRangeData(const common::Time time,
     }
   }
   ++num_accumulated_;
-
+    std::cout<<"james: num_accumulated:" << num_accumulated_ << " first_pose_estimate:" << first_pose_estimate_
+    << " tracking_delta:" << tracking_delta << " origin:" << range_data_in_first_tracking.origin
+    << " data size:" << range_data_in_first_tracking.returns.size() << " return:size:"
+    << accumulated_range_data_.returns.size() << " misses.size" << accumulated_range_data_.misses.size()<< std::endl;
   if (num_accumulated_ >= options_.scans_per_accumulation()) {
     num_accumulated_ = 0;
     return AddAccumulatedRangeData(
