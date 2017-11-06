@@ -76,6 +76,10 @@ class GlobalTrajectoryBuilder
     {
         return local_trajectory_builder_.GetHaloTrajectoryNodes();
     };
+ sensor::RangeData& GetHaloRangeData()
+        {
+            return local_trajectory_builder_.GetHaloRangeData();
+        }
  private:
   const int trajectory_id_;
   SparsePoseGraph* const sparse_pose_graph_;

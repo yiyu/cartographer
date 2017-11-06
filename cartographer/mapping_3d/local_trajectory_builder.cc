@@ -82,6 +82,7 @@ void LocalTrajectoryBuilder::AddImuData(const sensor::ImuData& imu_data)
  
 }
 
+static common::Time firstTime,lastTime;
 std::unique_ptr<LocalTrajectoryBuilder::InsertionResult>
 LocalTrajectoryBuilder::AddRangeData(const common::Time time,
                                      const sensor::RangeData& range_data) {
@@ -92,6 +93,8 @@ LocalTrajectoryBuilder::AddRangeData(const common::Time time,
     return nullptr;
   }
   if (num_accumulated_ == 0) {
+      //james
+      firstTime = time;
     first_pose_estimate_ = extrapolator_->ExtrapolatePose(time).cast<float>();
     accumulated_range_data_ = sensor::RangeData{Eigen::Vector3f::Zero(), {}, {}};
   }
@@ -119,12 +122,17 @@ LocalTrajectoryBuilder::AddRangeData(const common::Time time,
     }
   }
   ++num_accumulated_;
-    std::cout<<"james: num_accumulated:" << num_accumulated_ << " first_pose_estimate:" << first_pose_estimate_
-    << " tracking_delta:" << tracking_delta << " origin:" << range_data_in_first_tracking.origin
-    << " data size:" << range_data_in_first_tracking.returns.size() << " return:size:"
-    << accumulated_range_data_.returns.size() << " misses.size" << accumulated_range_data_.misses.size()<< std::endl;
-  if (num_accumulated_ >= options_.scans_per_accumulation()) {
+  
+if (num_accumulated_ >= options_.scans_per_accumulation()) {
     num_accumulated_ = 0;
+    //james
+    lastTime = time;
+    std::cout<<"james: num_accumulated:" << num_accumulated_ << " duration:" << common::ToSeconds(lastTime-firstTime)
+    << " first_pose_estimate:" << first_pose_estimate_ << " tracking_delta:" << tracking_delta
+    //<< " origin:" << range_data_in_first_tracking.origin << " data size:" << range_data_in_first_tracking.returns.size()
+    << " accu return:size:"
+    << accumulated_range_data_.returns.size() << " accu misses.size:" << accumulated_range_data_.misses.size();
+    ///
     return AddAccumulatedRangeData(
         time, sensor::TransformRangeData(accumulated_range_data_,
                                          tracking_delta.inverse()));
@@ -142,7 +150,15 @@ LocalTrajectoryBuilder::AddAccumulatedRangeData(
       sensor::VoxelFiltered(range_data_in_tracking.misses,
                             options_.voxel_filter_size())};
 
-  if (filtered_range_data.returns.empty()) {
+    //james test
+    halo_range_data_ = {
+        range_data_in_tracking.origin,
+        filtered_range_data.returns,
+        filtered_range_data.misses
+    };
+    std::cout << " halo return size:" <<  halo_range_data_.returns.size() << " halo miss size:" << halo_range_data_.misses.size() << " filter size:" <<options_.voxel_filter_size() << std::endl;
+    
+if (filtered_range_data.returns.empty()) {
     LOG(WARNING) << "Dropped empty range data.";
     return nullptr;
   }
@@ -158,6 +174,7 @@ LocalTrajectoryBuilder::AddAccumulatedRangeData(
       options_.high_resolution_adaptive_voxel_filter_options());
   const sensor::PointCloud filtered_point_cloud_in_tracking =
       adaptive_voxel_filter.Filter(filtered_range_data.returns);
+    
   if (options_.use_online_correlative_scan_matching()) {
     // We take a copy since we use 'initial_ceres_pose' as an output argument.
     const transform::Rigid3d initial_pose = initial_ceres_pose;
@@ -270,6 +287,9 @@ LocalTrajectoryBuilder::InsertIntoSubmap(
     {
        return ImuTrajectoryNodes_;
     }
-
+ sensor::RangeData& LocalTrajectoryBuilder::GetHaloRangeData()
+    {
+        return halo_range_data_;
+    }
 }  // namespace mapping_3d
 }  // namespace cartographer

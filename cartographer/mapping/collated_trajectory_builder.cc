@@ -84,6 +84,11 @@ std::vector<transform::Rigid3d> CollatedTrajectoryBuilder::GetHaloTrajectoryNode
 {
     return wrapped_trajectory_builder_->GetHaloTrajectoryNodes();
 }
+    
+    sensor::RangeData& CollatedTrajectoryBuilder::GetHaloRangeData()
+    {
+        return wrapped_trajectory_builder_->GetHaloRangeData();
+    }
 ///
 }  // namespace mapping
 }  // namespace cartographer

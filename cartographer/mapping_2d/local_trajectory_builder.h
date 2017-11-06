@@ -63,6 +63,7 @@ class LocalTrajectoryBuilder {
     
     //james for test
     std::vector<transform::Rigid3d> GetHaloTrajectoryNodes();
+    sensor::RangeData& GetHaloRangeData();
  private:
   std::unique_ptr<InsertionResult> AddAccumulatedRangeData(
       common::Time time, const sensor::RangeData& range_data);

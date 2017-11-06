@@ -26,7 +26,7 @@ namespace sensor {
 
 struct ImuData {
   common::Time time;
-  Eigen::Vector3d linear_acceleration;
+Eigen::Vector3d linear_acceleration;
   Eigen::Vector3d angular_velocity;
 };
 

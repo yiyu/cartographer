@@ -64,7 +64,7 @@ class LocalTrajectoryBuilder {
 
     //james for test
     std::vector<transform::Rigid3d> GetHaloTrajectoryNodes() ;
-
+    sensor::RangeData& GetHaloRangeData();
  private:
   std::unique_ptr<InsertionResult> AddAccumulatedRangeData(
       common::Time time, const sensor::RangeData& range_data_in_tracking);
@@ -95,6 +95,7 @@ class LocalTrajectoryBuilder {
   sensor::RangeData accumulated_range_data_;
 //james
  std::vector<transform::Rigid3d>  ImuTrajectoryNodes_;
+    sensor::RangeData halo_range_data_;
 };
 
 }  // namespace mapping_3d

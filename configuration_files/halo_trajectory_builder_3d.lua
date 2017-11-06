@@ -12,29 +12,28 @@
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
 
-MAX_3D_RANGE = 60.
---2.5 
+MAX_3D_RANGE = 2.5 
 --60.
 
 TRAJECTORY_BUILDER_3D = {
-  min_range = 1., --0.15, --1.,
+  min_range = 0.15, --1., 
   max_range = MAX_3D_RANGE,
   scans_per_accumulation = 1,
-  voxel_filter_size = 0.15,
+  voxel_filter_size = 0.05,--0.15,
 
   high_resolution_adaptive_voxel_filter = {
-    max_length = 2.,
+    max_length = 2., -- filter max resolution
     min_num_points = 150,
-    max_range = 15.,
+    max_range = MAX_3D_RANGE, --15.,
   },
 
   low_resolution_adaptive_voxel_filter = {
-    max_length = 4.,
+    max_length = 4., -- filter max resolution
     min_num_points = 200,
     max_range = MAX_3D_RANGE,
   },
 
-  use_online_correlative_scan_matching = false,
+  use_online_correlative_scan_matching = true, --false,
   real_time_correlative_scan_matcher = {
     linear_search_window = 0.15,
     angular_search_window = math.rad(1.),

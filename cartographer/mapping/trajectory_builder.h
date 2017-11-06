@@ -85,6 +85,8 @@ class TrajectoryBuilder {
 
   //james for test
   virtual std::vector<transform::Rigid3d> GetHaloTrajectoryNodes() = 0;
+    
+   virtual sensor::RangeData& GetHaloRangeData() = 0;
 };
 
 }  // namespace mapping

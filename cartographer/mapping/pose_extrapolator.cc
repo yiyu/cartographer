@@ -72,7 +72,7 @@ void PoseExtrapolator::AddPose(const common::Time time,
     timed_pose_queue_.pop_front();
   }
   
- std::cout << "james:     AddPose:"  << " time:" <<time << " pose:" << pose << " velocity:" << transform::Rigid3d::Translation(linear_velocity_from_poses_) << std::endl;
+ //std::cout << "james:     AddPose:"  << " time:" <<time << " pose:" << pose << " velocity:" << transform::Rigid3d::Translation(linear_velocity_from_poses_) << std::endl;
   UpdateVelocitiesFromPoses();
   AdvanceImuTracker(time, imu_tracker_.get());
   TrimImuData();

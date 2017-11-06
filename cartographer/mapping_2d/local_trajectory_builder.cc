@@ -230,5 +230,9 @@ namespace mapping_2d {
     {
         return ImuTrajectoryNodes_;;
     }
+    
+    sensor::RangeData& LocalTrajectoryBuilder::GetHaloRangeData(){
+        return accumulated_range_data_;
+    }
 }  // namespace mapping_2d
 }  // namespace cartographer
